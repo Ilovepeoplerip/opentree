@@ -1690,6 +1690,10 @@ function getTreeConflictSummary(conflictInfo) {
     // summary tallies of each node status.
     // treat supported_by and partial_path_of the same
     var summary = {
+        'terminal': {
+            total: 0,
+            nodes: {}
+        },
         'aligned': {
             total: 0,
             nodes: {}
@@ -1711,6 +1715,9 @@ function getTreeConflictSummary(conflictInfo) {
     for (var nodeid in conflictInfo.detailsByNodeID) {
         switch(conflictInfo.detailsByNodeID[nodeid].status) {
 	    case 'terminal':
+                summary.terminal.total++;
+                summary.terminal.nodes[nodeid] = conflictInfo.detailsByNodeID[nodeid];
+                break;
             case 'supported_by':
             case 'partial_path_of':
                 summary.aligned.total++;
@@ -1735,6 +1742,7 @@ function getTreeConflictSummary(conflictInfo) {
     var nodeCounts = getNodeCounts(tree);
     var internalNodeCount = nodeCounts.totalNodes - nodeCounts.totalTips;
     summary.undetermined.total = nodeCounts.totalNodes
+        - summary.terminal.total
         - summary.aligned.total
         - summary.conflicting.total
         - summary.resolving.total;
@@ -1876,6 +1884,35 @@ function displayConflictSummary(conflictInfo) {
       var unnamedNodes = summaryInfo.conflicting.total - namedNodes
       if (unnamedNodes > 0) {
         $nodeList.append('<li>plus ' + unnamedNodes + ' more nodes that resolve unnamed nodes in the target</li>')
+      }
+    }
+
+    // show terminal nodes
+    $reportArea.append('<p style="padding-left: 2em;">'+ summaryInfo.terminal.total
+        +' <strong>tip</strong> nodes that can be mapped to nodes in the target'
+        + (summaryInfo.terminal.total > 0 ? ' <a href="#" onclick="$(\'#report-terminal-nodes\').toggle(); return false;">(hide/show node list)</a>' : '')
+        +'</p>');
+    $reportArea.append('<ul id="report-terminal-nodes" class="conflict-report-node-list"></ul>');
+    var $nodeList = $reportArea.find('#report-terminal-nodes');
+    var namedNodes = 0
+    for (var nodeid in summaryInfo.terminal.nodes) {
+        var nodeInfo = summaryInfo.terminal.nodes[nodeid];
+        if ('witness' in nodeInfo) {
+          var nodeLink = getTargetTreeNodeLink(nodeid, referenceTreeID);
+          var witnessLink = getWitnessLink(nodeInfo, targetTree);
+          var nodeName = 'tree '+ nodeLink +' terminal to '+ witnessLink;
+          $nodeList.append('<li>'+ nodeName +'</li>');
+          ++namedNodes
+        }
+        //var nodeName = 'witness_name' in nodeInfo ? nodeInfo.witness_name +' ['+ nodeid +']' : 'Unnamed node ('+ nodeInfo.witness +')'
+    }
+    if (namedNodes == 0) {
+      $nodeList.append('<li>all target nodes unnamed (so there is not anything interesting to show here)</li>')
+    }
+    else {
+      var unnamedNodes = summaryInfo.terminal.total - namedNodes
+      if (unnamedNodes > 0) {
+        $nodeList.append('<li>plus ' + unnamedNodes + ' more unnamed target nodes terminal to nodes in this tree</li>')
       }
     }
 
